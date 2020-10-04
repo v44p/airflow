@@ -1,0 +1,5 @@
+celery[redis]==4.4.0
+redis
+flower
+sqlalchemy
+apache-airflow[redis,crypto,mysql]

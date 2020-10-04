@@ -1,0 +1,19 @@
+FROM apache/airflow as builder
+
+WORKDIR /install
+COPY requirements.txt .
+USER root
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc build-essential \
+    && apt-get install libmysqlclient-dev \
+    && pip install --user -r requirements.txt
+
+FROM apache/airflow as release 
+
+COPY --from=builder /root/.local /root/.local
+WORKDIR /airflow
+COPY . /airflow
+ENV PATH=/root/.local/bin:$PATH
+EXPOSE 5555
+
+ENTRYPOINT ["./scripts/start_webserver.sh"]

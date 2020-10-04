@@ -1,0 +1,91 @@
+version: '3.8'
+services:
+  mysql:
+    image: mysql:latest
+    container_name: mysql-airflow
+
+    environment:
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_DATABASE=${MYSQL_DATABASE}
+    volumes:
+      - airflow-db:/var/lib/mysql
+    ports:
+      - "3306:3306"
+    networks:
+      - backend
+  redis:
+    image: redis:latest
+    container_name: redis-airflow
+    volumes:
+      - "./redis/:/usr/local/etc/redis/redis.conf"
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+  scheduler:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile-scheduler
+    container_name: airflow-scheduler
+    depends_on:
+      - mysql
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./scripts:/opt/airflow/scripts
+      - ./connections:/opt/airflow/connections
+      - /etc/hosts:/etc/hosts
+      - logs-airflow:/opt/airflow/logs:rw
+    networks:
+      - backend
+  webserver:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile-webserver
+    container_name: airflow-webserver
+    env_file:
+        - .env
+    volumes:
+        - ./dags:/opt/airflow/dags
+        - ./scripts:/opt/airflow/scripts
+        - ./connections:/opt/airflow/connections
+        - logs-airflow:/opt/airflow/logs:rw
+    networks:
+      - backend
+    ports:
+        - "8080:8080"
+  celery:
+    image: apache/airflow
+    container_name: airflow-celery
+    entrypoint: ./scripts/start_worker.sh
+    env_file:
+        - .env
+    volumes:
+        - ./dags:/opt/airflow/dags
+        - ./scripts:/opt/airflow/scripts
+        - ./connections:/opt/airflow/connections
+        - /etc/hosts:/etc/hosts:rw
+        - logs-airflow:/opt/airflow/logs:rw
+    networks:
+      - backend
+  flower:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile-flower
+    container_name: airflow-flower
+    restart: always
+    ports:
+      - "5555:5555"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: "bridge"
+volumes:
+  airflow-db:
+  logs-airflow:
+        
